@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <time.h>
 
 #define MAX_THREADS 8
 
@@ -106,42 +107,47 @@ void print_array(long long *array, int size)
     printf("\n");
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    int n = 100;
+    if (argc < 4)
+    {
+        printf("Uso: %s <tamanho de input n> <valor x> <número de threads>\n", argv[0]);
+        return 1;
+    }
+
+    int n = atoi(argv[1]);        // Lê o tamanho do array `n` dos argumentos
+    long long x = atoll(argv[2]); // Lê o valor a ser buscado `x` dos argumentos
+    int nThreads = atoi(argv[3]); // Lê o número de threads dos argumentos
+
+    if (nThreads <= 0)
+    {
+        printf("Erro: O número de threads deve ser positivo.\n");
+        return 1;
+    }
+
+    if (nThreads > MAX_THREADS)
+    {
+        printf("Erro: O número de threads deve ser menor que %d.\n", MAX_THREADS);
+        return 1;
+    }
+
     data_t d;
     d.input = create_sorted_array(n);
     d.l = 0;
-    d.r = n;
-    d.nThreads = MAX_THREADS;
+    d.r = n - 1;
+    d.nThreads = nThreads;
+    d.x = x; // Define o valor a ser buscado
 
-    print_array(d.input, n);
-
-    // Testes com diferentes valores de x
-    d.x = 0;
+    // Medição de tempo antes de executar `threaded_bsearch_lower_bound`
+    clock_t start_time = clock();
     threaded_bsearch_lower_bound(&d);
-    printf("Posição de %lld: %d\n", d.x, d.result);
+    clock_t end_time = clock();
 
-    d.x = 1;
-    threaded_bsearch_lower_bound(&d);
-    printf("Posição de %lld: %d\n", d.x, d.result);
+    double elapsed_time = ((double)(end_time - start_time)) / CLOCKS_PER_SEC * 1000; // Tempo em milissegundos
 
-    d.x = 200;
-    threaded_bsearch_lower_bound(&d);
-    printf("Posição de %lld: %d\n", d.x, d.result);
+    printf("Tempo de execução de threaded_bsearch_lower_bound: %.2f ms\n", elapsed_time);
 
-    d.x = 300;
-    threaded_bsearch_lower_bound(&d);
-    printf("Posição de %lld: %d\n", d.x, d.result);
-
-    d.x = 800;
-    threaded_bsearch_lower_bound(&d);
-    printf("Posição de %lld: %d\n", d.x, d.result);
-
-    d.x = 900;
-    threaded_bsearch_lower_bound(&d);
-    printf("Posição de %lld: %d\n", d.x, d.result);
-
+    // Liberação de memória
     free(d.input);
 
     return 0;

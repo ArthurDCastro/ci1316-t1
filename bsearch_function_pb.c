@@ -1,9 +1,9 @@
 #include <stdlib.h>
-#include <math.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define MAX_THREADS 8
 
@@ -40,7 +40,7 @@ long long *create_sorted_array(int n, int q)
     array[0] = q * (rand() % 100);
     for (int i = 1; i < n; i++)
     {
-        array[i] = (long long)i * (rand() % 10) * q + array[i - 1] + 1;
+        array[i] = (long long)(rand() % 10) * q + array[i - 1] + 1;
     }
 
     return array;
@@ -53,6 +53,77 @@ void print_array(vetor *v)
         printf("%d: %lld ", i, v->v[i]);
     }
     printf("\n");
+}
+
+// Função para mesclar dois vetores ordenados em um terceiro vetor ordenado
+vetor merge_sorted_vectors(vetor *vet1, vetor *vet2)
+{
+    int size1 = vet1->r - vet1->l + 1;
+    int size2 = vet2->r - vet2->l + 1;
+
+    vetor merged;
+    merged.v = (long long *)malloc((size1 + size2) * sizeof(long long));
+    if (!merged.v)
+    {
+        printf("Erro ao alocar memória.\n");
+        exit(1);
+    }
+    merged.l = 0;
+    merged.r = size1 + size2 - 1;
+
+    int i = vet1->l, j = vet2->l, k = 0;
+
+    while (i <= vet1->r && j <= vet2->r)
+    {
+        if (vet1->v[i] <= vet2->v[j])
+        {
+            merged.v[k++] = vet1->v[i++];
+        }
+        else
+        {
+            merged.v[k++] = vet2->v[j++];
+        }
+    }
+
+    while (i <= vet1->r)
+    {
+        merged.v[k++] = vet1->v[i++];
+    }
+
+    while (j <= vet2->r)
+    {
+        merged.v[k++] = vet2->v[j++];
+    }
+
+    return merged;
+}
+
+// Função recursiva para mesclar `n` vetores ordenados
+vetor merge_n_sorted_vectors(vetor *arrays, int left, int right)
+{
+    // Caso base: apenas um vetor a ser mesclado
+    if (left == right)
+    {
+        return arrays[left];
+    }
+
+    // Calcula o ponto médio para dividir o trabalho
+    int mid = left + (right - left) / 2;
+
+    // Mescla recursivamente as duas metades
+    vetor left_merged = merge_n_sorted_vectors(arrays, left, mid);
+    vetor right_merged = merge_n_sorted_vectors(arrays, mid + 1, right);
+
+    // Mescla as duas metades mescladas e retorna o resultado
+    vetor merged = merge_sorted_vectors(&left_merged, &right_merged);
+
+    // Libera memória dos vetores temporários
+    if (left_merged.v != arrays[left].v)
+        free(left_merged.v);
+    if (right_merged.v != arrays[mid + 1].v)
+        free(right_merged.v);
+
+    return merged;
 }
 
 void add_result(vetor *v, int n)
@@ -71,138 +142,6 @@ int cmp(const void *a, const void *b)
         return 1;
     return 0;
 }
-
-// Função de busca binária sequencial
-int bsearch_s(vetor *input, long long x)
-{
-    int l, r;
-    l = input->l;
-    r = input->r;
-    while (l < r)
-    {
-        int mid = l + (r - l) / 2;
-        if (input->v[mid] < x)
-        {
-            l = mid + 1;
-        }
-        else
-        {
-            r = mid;
-        }
-    }
-
-    if (input->v[l] < x)
-        return l + 1;
-    return l;
-}
-
-// Função que será executada pelas threads
-void *thread_bsearch_lower_bound(void *arg)
-{
-    data_t *d = (data_t *)arg;
-    threaded_bsearch_lower_bound(d); // Chama a busca sequencial
-    pthread_exit(NULL);
-}
-
-// Função que divide o trabalho em múltiplas threads
-void threaded_bsearch_lower_bound(data_t *d)
-{
-    // Caso base: se a região do vetor x é inválida (início maior que o fim), termina a execução
-    if (d->x.l > d->x.r)
-        return;
-
-    // Caso base: se a região do vetor x contém apenas um elemento
-    if (d->x.l == d->x.r)
-    {
-        // Adiciona ao resultado o índice da busca binária para o único elemento de x
-        add_result(d->result, bsearch_s(&d->input, d->x.v[d->x.l]));
-        return;
-    }
-
-    // Caso base: se o vetor de entrada tem apenas um elemento
-    if (d->input.l == d->input.r)
-    {
-        // Para cada elemento em x, adiciona a posição desse único elemento ao resultado
-        for (int i = d->x.l; i <= d->x.r; i++)
-            add_result(d->result, d->input.l);
-        return;
-    }
-
-    // Criação de duas estruturas `data_t` para representar as metades esquerda e direita
-    data_t ld = *d, rd = *d;                              // Cópia dos dados para subdividir
-    int mid = d->input.l + (d->input.r - d->input.l) / 2; // Calcula o ponto médio do vetor de entrada
-
-    // Busca o ponto médio no vetor x para dividir a carga de trabalho
-    int mid_x = bsearch_s(&d->x, d->input.v[mid]) - 1;
-
-    // Ajusta os limites das sub-regiões para a metade esquerda
-    ld.input.r = mid; // Região esquerda do vetor de entrada
-    ld.x.r = mid_x;   // Região correspondente no vetor x
-
-    // Ajusta os limites das sub-regiões para a metade direita
-    rd.input.l = mid + 1; // Região direita do vetor de entrada
-    rd.x.l = mid_x + 1;   // Região correspondente no vetor x
-
-    // Se não há threads disponíveis, realiza a busca binária sequencialmente nas duas metades
-    if (d->nThreads < 2)
-    {
-        threaded_bsearch_lower_bound(&ld); // Processa a metade esquerda
-        threaded_bsearch_lower_bound(&rd); // Processa a metade direita
-        return;
-    }
-
-    // Verifica se a região da metade esquerda é válida
-    if (ld.x.r - ld.x.l < 0)
-    {
-        // Se não for válida, processa apenas a metade direita
-        threaded_bsearch_lower_bound(&rd);
-        return;
-    }
-
-    // Verifica se a região da metade direita é válida
-    if (rd.x.r - rd.x.l < 0)
-    {
-        // Se não for válida, processa apenas a metade esquerda
-        threaded_bsearch_lower_bound(&ld);
-        return;
-    }
-
-    // Reduz o número de threads disponíveis
-    d->nThreads--;
-
-    // Calcula a proporção do trabalho para distribuir as threads entre as duas metades
-    double c = (double)(ld.x.r - ld.x.l) / (d->x.r - d->x.l);
-
-    // Calcula o número de threads para a metade esquerda
-    int t = d->nThreads * c + 1;
-
-    // Exibe informações para depuração
-    printf("t: %d\n l = %d, d = %d, c: %f\n", t, (ld.x.r - ld.x.l), (d->x.r - d->x.l), c);
-
-    // Distribui as threads entre as duas metades
-    ld.nThreads = t;
-    rd.nThreads = d->nThreads - t;
-
-    // Declaração das threads
-    pthread_t threads[2];
-    printf("2 threads criadas\n");
-
-    // Cria threads para processar as metades esquerda e direita
-    pthread_create(&threads[0], NULL, thread_bsearch_lower_bound, (void *)&ld);
-    pthread_create(&threads[1], NULL, thread_bsearch_lower_bound, (void *)&rd);
-
-    // Espera as threads terminarem
-    pthread_join(threads[0], NULL);
-    pthread_join(threads[1], NULL);
-
-    // Ordena o vetor de resultados ao final da execução
-    int result_size = d->result->r - d->result->l + 1;
-    qsort(d->result->v, result_size, sizeof(long long), cmp);
-}
-
-#include <stdbool.h>
-
-#include <stdbool.h>
 
 // Função para verificar se o vetor 'result' está correto
 bool verify_result(vetor *input, vetor *x, vetor *result)
@@ -225,9 +164,9 @@ bool verify_result(vetor *input, vetor *x, vetor *result)
         long long value_x = x->v[i];   // Valor correspondente em 'x'
 
         // Verifica se o índice é válido (dentro dos limites de 'input')
-        if (idx_result < input->l || idx_result > input->r + 1)
+        if (idx_result < input->l || idx_result >= input->r + 2)
         {
-            printf("Erro: Índice fora do intervalo válido (%d).\n", idx_result);
+            printf("Erro: Índice fora do intervalo (%d - %d) válido (%d).\n", input->l, input->r, idx_result);
             return false;
         }
 
@@ -252,48 +191,216 @@ bool verify_result(vetor *input, vetor *x, vetor *result)
     return true;
 }
 
-int main()
+// Função de busca binária sequencial
+int bsearch_s(vetor *input, long long x)
 {
-    int n = 100000;
-    int m = 60;
+    int l = input->l;
+    int r = input->r;
+
+    while (l <= r)
+    {
+        int mid = l + (r - l) / 2;
+
+        if (input->v[mid] == x)
+            return mid;
+        else if (input->v[mid] < x)
+            l = mid + 1;
+        else
+            r = mid - 1;
+    }
+
+    // Se não encontrou, retorna a posição onde `x` poderia ser inserido
+    return l;
+}
+
+void div_vetor(data_t *d, data_t *left_d, data_t *right_d)
+{
+    *left_d = *right_d = *d;
+    int mid = d->input.l + (d->input.r - d->input.l) / 2; // Calcula o ponto médio do vetor de entrada
+
+    // Busca o ponto médio no vetor x para dividir a carga de trabalho
+    int mid_x = bsearch_s(&d->x, d->input.v[mid]);
+
+    // Corrige `mid_x` para garantir que esteja dentro dos limites de `x`
+    if (mid_x > d->x.r)
+        mid_x = d->x.r;
+    else if (d->x.v[mid_x] > d->input.v[mid])
+        mid_x--;
+
+    // Ajusta os limites das sub-regiões para a metade esquerda
+    left_d->input.r = mid; // Região esquerda do vetor de entrada
+    left_d->x.r = mid_x;   // Região correspondente no vetor x
+
+    // Ajusta os limites das sub-regiões para a metade direita
+    right_d->input.l = mid + 1; // Região direita do vetor de entrada
+    right_d->x.l = mid_x + 1;   // Região correspondente no vetor
+}
+
+void bsearch_lower_bound(data_t *d)
+{
+    for (int i = d->x.l; i <= d->x.r; i++)
+    {
+        add_result(d->result, bsearch_s(&d->input, d->x.v[i]));
+    }
+    return;
+}
+
+// Função que será executada pelas threads
+void *thread_bsearch_lower_bound(void *arg)
+{
+    data_t *d = (data_t *)arg;
+    bsearch_lower_bound(d); // Chama a busca sequencial
+    pthread_exit(NULL);
+}
+
+// Função que divide o trabalho em múltiplas threads
+void threaded_bsearch_lower_bound(data_t *d)
+{
+    if (d->nThreads == 0)
+    {
+        bsearch_lower_bound(d);
+        return;
+    }
+
+    int x_tam = (d->x.r - d->x.l) / d->nThreads;
+
+    pthread_t threads[MAX_THREADS];
+    data_t *nd = (data_t *)malloc(d->nThreads * sizeof(data_t));
+
+    int l, r;
+    l = 0;
+    r = x_tam - 1;
+
+    for (int i = 0; i < d->nThreads - 1; i++)
+    {
+
+        nd[i] = *d;
+        nd[i].x.l = l;
+        nd[i].x.r = r;
+        vetor *result = (vetor *)malloc(sizeof(vetor));
+        result->v = (long long *)malloc((r - l + 1) * sizeof(long long));
+        result->l = 0;
+        result->r = -1;
+        nd[i].result = result;
+        pthread_create(&threads[i], NULL, thread_bsearch_lower_bound, (void *)&nd[i]);
+
+        l = r + 1;
+        r += x_tam;
+    }
+    int i = d->nThreads - 1;
+    nd[i] = *d;
+    nd[i].x.l = l;
+    vetor *result = (vetor *)malloc(sizeof(vetor));
+    result->v = (long long *)malloc((r - l + 1) * sizeof(long long));
+    result->l = 0;
+    result->r = -1;
+    nd[i].result = result;
+    pthread_create(&threads[i], NULL, thread_bsearch_lower_bound, (void *)&nd[i]);
+
+    result = (vetor *)malloc(sizeof(vetor));
+    result->v = (long long *)malloc((r - l + 1) * sizeof(long long));
+    result->l = 0;
+    result->r = -1;
+    for (int i = 0; i < d->nThreads; i++)
+    {
+        pthread_join(threads[i], NULL);
+        *result = merge_sorted_vectors(result, nd[i].result);
+        // print_array(result);
+        free(nd[i].result);
+    }
+
+    *d->result = *result;
+
+    // Ordena o vetor de resultados ao final da execução
+    int result_size = d->result->r - d->result->l + 1;
+    qsort(d->result->v, result_size, sizeof(long long), cmp);
+
+    free(nd); // Libera a memória alocada para as divisões
+}
+int main(int argc, char *argv[])
+{
+    if (argc < 4)
+    {
+        printf("Uso: %s <tamanho de input n> <tamanho de x m> <número de threads>\n", argv[0]);
+        return 1;
+    }
+
+    int n = atoi(argv[1]);        // Lê o tamanho de input `n` dos argumentos
+    int m = atoi(argv[2]);        // Lê o tamanho de x `m` dos argumentos
+    int nThreads = atoi(argv[3]); // Lê o número de threads dos argumentos
+
+    if (nThreads <= 0)
+    {
+        printf("Erro: O número de threads deve ser positivo.\n");
+        return 1;
+    }
+
+    if (nThreads > MAX_THREADS)
+    {
+        printf("Erro: O número de threads deve ser menor que %d.\n", MAX_THREADS);
+        return 1;
+    }
+
     vetor input, x, *result = (vetor *)malloc(sizeof(vetor));
+    if (!result)
+    {
+        printf("Erro ao alocar memória para result.\n");
+        return 1;
+    }
+
     input.v = create_sorted_array(n, 13);
-    x.v = create_sorted_array(m, 997);
+    if (!input.v)
+    {
+        printf("Erro ao alocar memória para input.\n");
+        free(result);
+        return 1;
+    }
+
+    x.v = create_sorted_array(m, input.v[n - 1] / m);
+    if (!x.v)
+    {
+        printf("Erro ao alocar memória para x.\n");
+        free(input.v);
+        free(result);
+        return 1;
+    }
+
     input.l = x.l = 0;
     input.r = n - 1;
     x.r = m - 1;
+
     data_t d;
     d.input = input;
     d.x = x;
 
-    result->v = (long long *)malloc(3 * m * sizeof(long long));
+    result->v = (long long *)malloc(m * sizeof(long long));
+    if (!result->v)
+    {
+        printf("Erro ao alocar memória para result->v.\n");
+        free(input.v);
+        free(x.v);
+        free(result);
+        return 1;
+    }
+
     result->l = 0;
     result->r = -1;
     d.result = result;
+    d.nThreads = nThreads; // Define o número de threads com o valor do argumento
 
-    d.nThreads = MAX_THREADS;
-
-    printf("Input:\n");
-    print_array(&input);
-    printf("x: %d\n", bsearch_s(&x, (long long)76189));
-    print_array(&x);
-
-    // Testes com diferentes valores de x
-
+    // Medição de tempo antes de executar `threaded_bsearch_lower_bound`
+    clock_t start_time = clock();
     threaded_bsearch_lower_bound(&d);
-    printf("Result:\n");
-    print_array(d.result);
+    clock_t end_time = clock();
 
-    if (verify_result(&input, &x, result))
-    {
-        printf("Teste bem-sucedido: O vetor 'result' está correto.\n");
-    }
-    else
-    {
-        printf("Teste falhou: O vetor 'result' contém erros.\n");
-    }
+    double elapsed_time = ((double)(end_time - start_time)) / CLOCKS_PER_SEC * 1000; // Tempo em milissegundos
+    printf("Tempo de execução de threaded_bsearch_lower_bound: %.2f ms\n", elapsed_time);
 
+    // Liberação de memória
     free(input.v);
+    free(x.v);
+    free(result->v);
+    free(result);
 
     return 0;
 }
