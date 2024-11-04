@@ -273,6 +273,7 @@ void threaded_bsearch_lower_bound(data_t *d)
     int l, r;
     l = 0;
     r = x_tam - 1;
+    vetor *result;
 
     for (int i = 0; i < d->nThreads - 1; i++)
     {
@@ -280,7 +281,7 @@ void threaded_bsearch_lower_bound(data_t *d)
         nd[i] = *d;
         nd[i].x.l = l;
         nd[i].x.r = r;
-        vetor *result = (vetor *)malloc(sizeof(vetor));
+        result = (vetor *)malloc(sizeof(vetor));
         result->v = (long long *)malloc((r - l + 1) * sizeof(long long));
         result->l = 0;
         result->r = -1;
@@ -293,7 +294,7 @@ void threaded_bsearch_lower_bound(data_t *d)
     int i = d->nThreads - 1;
     nd[i] = *d;
     nd[i].x.l = l;
-    vetor *result = (vetor *)malloc(sizeof(vetor));
+    result = (vetor *)malloc(sizeof(vetor));
     result->v = (long long *)malloc((r - l + 1) * sizeof(long long));
     result->l = 0;
     result->r = -1;
@@ -396,18 +397,22 @@ int main(int argc, char *argv[])
     d.result = result;
     d.nThreads = nThreads; // Define o número de threads com o valor do argumento
 
+        
+    
     // Inicia e para a medição de tempo para uma única execução
     chrono_start(&chrono); // Inicia a medição de tempo
 
-    // Executa a busca binária paralela uma vez
-    threaded_bsearch_lower_bound(&d);
+    for (int i = 0; i < 10; i++){
+        // Executa a busca binária paralela uma vez
+        threaded_bsearch_lower_bound(&d);
+    }
 
     chrono_stop(&chrono); // Finaliza a medição de tempo
 
     // Exibe o tempo total e a vazão
     chrono_reportTime(&chrono, "Tempo de execução para threaded_bsearch_lower_bound");
     double total_time_in_seconds = (double)chrono_gettotal(&chrono) / ((double)1000 * 1000 * 1000);
-    printf("Tempo total em segundos: %lf s\n", total_time_in_seconds);
+    printf("total_time_in_seconds: %lf s\n", total_time_in_seconds);
 
     double OPS = ((double)m) / total_time_in_seconds;
     printf("Throughput (OPS): %lf OP/s\n", OPS);

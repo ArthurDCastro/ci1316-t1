@@ -1,15 +1,26 @@
 CFLAGS = -Wall -g -pthread
 
-all: main
+all: bsearch_function_pa bsearch_function_pb
+LIB = chrono.o
 
-main: src/main.o
-	gcc $(CFLAGS) src/main.o -o busca
 
-main.o : src/main.c 
-	gcc $(CFLAGS) -c src/main.c
+bsearch_function_pa: bsearch_function_pa.o $(LIB)
+	gcc $(CFLAGS) bsearch_function_pa.o $(LIB) -o bsearch_function_pa
+
+bsearch_function_pa.o : bsearch_function_pa.c 
+	gcc $(CFLAGS) -c bsearch_function_pa.c
+
+bsearch_function_pb: bsearch_function_pb.o $(LIB)
+	gcc $(CFLAGS) bsearch_function_pb.o $(LIB) -o bsearch_function_pb
+
+bsearch_function_pb.o : bsearch_function_pb.c 
+	gcc $(CFLAGS) -c bsearch_function_pb.c
+
+chrono.o: chrono.c chrono.h
+	gcc $(CFLAGS) -c chrono.c
 
 clean:
-	rm -rf ./src*.o
-	 
+	rm -rf *.o
+
 purge: clean
-	rm -rf busca
+	rm -rf bsearch_function_pa bsearch_function_pb
