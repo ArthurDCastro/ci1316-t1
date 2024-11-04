@@ -148,11 +148,13 @@ int main(int argc, char *argv[])
     // Inicia a medição de tempo
     chrono_start(&chrono);
 
-    // Executa a busca binária paralela para cada valor em `x`
-    for (int i = 0; i < m; i++)
-    {
-        d.x = x[i]; // Define o valor a ser buscado
-        threaded_bsearch_lower_bound(&d);
+    for (int i = 0; i < 10; i++){
+        // Executa a busca binária paralela para cada valor em `x`
+        for (int i = 0; i < m; i++)
+        {
+            d.x = x[i]; // Define o valor a ser buscado
+            threaded_bsearch_lower_bound(&d);
+        }
     }
 
     // Para a medição de tempo

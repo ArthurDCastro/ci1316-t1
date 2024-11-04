@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
     // Exibe o tempo total e a vazão
     chrono_reportTime(&chrono, "Tempo de execução para threaded_bsearch_lower_bound");
     double total_time_in_seconds = (double)chrono_gettotal(&chrono) / ((double)1000 * 1000 * 1000);
-    printf("total_time_in_seconds: %lf s\n", total_time_in_seconds);
+    printf("Tempo total em segundos:: %lf s\n", total_time_in_seconds);
 
     double OPS = ((double)m) / total_time_in_seconds;
     printf("Throughput (OPS): %lf OP/s\n", OPS);
