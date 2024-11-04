@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <time.h>
+#include "chrono.h"
 
 #define MAX_THREADS 8
 
@@ -115,8 +116,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    int n = atoi(argv[1]);        // Lê o tamanho do array `n` dos argumentos
-    long long x = atoll(argv[2]); // Lê o valor a ser buscado `x` dos argumentos
+    int n = atoi(argv[1]);        // Lê o tamanho de input `n` dos argumentos
+    int m = atoi(argv[2]);        // Lê o tamanho de x `m` dos argumentos
     int nThreads = atoi(argv[3]); // Lê o número de threads dos argumentos
 
     if (nThreads <= 0)
@@ -136,16 +137,22 @@ int main(int argc, char *argv[])
     d.l = 0;
     d.r = n - 1;
     d.nThreads = nThreads;
-    d.x = x; // Define o valor a ser buscado
+
+    long long *x = create_sorted_array(m);
 
     // Medição de tempo antes de executar `threaded_bsearch_lower_bound`
     clock_t start_time = clock();
-    threaded_bsearch_lower_bound(&d);
+    for (int i = 0; i < m; i++)
+    {
+         d.x = x[i]; // Define o valor a ser buscado
+
+        threaded_bsearch_lower_bound(&d);
+    }
     clock_t end_time = clock();
 
     double elapsed_time = ((double)(end_time - start_time)) / CLOCKS_PER_SEC * 1000; // Tempo em milissegundos
 
-    printf("Tempo de execução de threaded_bsearch_lower_bound: %.2f ms\n", elapsed_time);
+    printf("%.2f\n", elapsed_time);
 
     // Liberação de memória
     free(d.input);

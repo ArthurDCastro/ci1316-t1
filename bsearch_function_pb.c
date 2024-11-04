@@ -4,8 +4,11 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdbool.h>
+#include "chrono.h" // Inclui o header para usar o cronômetro
 
-#define MAX_THREADS 8
+#define MAX_TOTAL_ELEMENTS 16000000
+
+#define MAX_THREADS 16
 
 typedef struct
 {
@@ -319,15 +322,15 @@ void threaded_bsearch_lower_bound(data_t *d)
 }
 int main(int argc, char *argv[])
 {
-    if (argc < 4)
+    if (argc < 3)
     {
-        printf("Uso: %s <tamanho de input n> <tamanho de x m> <número de threads>\n", argv[0]);
+        printf("Uso: %s <tamanho de input n> <número de threads>\n", argv[0]);
         return 1;
     }
 
-    int n = atoi(argv[1]);        // Lê o tamanho de input `n` dos argumentos
-    int m = atoi(argv[2]);        // Lê o tamanho de x `m` dos argumentos
-    int nThreads = atoi(argv[3]); // Lê o número de threads dos argumentos
+    int n = atoi(argv[1]);         // Lê o tamanho de input `n` dos argumentos
+    int m = 100000;         // Lê o tamanho de x `m` dos argumentos
+    int nThreads = atoi(argv[2]);  // Lê o número de threads dos argumentos
 
     if (nThreads <= 0)
     {
@@ -341,6 +344,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    // Preparação para medir o tempo
+    chronometer_t chrono;
+    chrono_reset(&chrono);
+
+    // Criação dos vetores de entrada e de pesquisa
     vetor input, x, *result = (vetor *)malloc(sizeof(vetor));
     if (!result)
     {
@@ -388,13 +396,21 @@ int main(int argc, char *argv[])
     d.result = result;
     d.nThreads = nThreads; // Define o número de threads com o valor do argumento
 
-    // Medição de tempo antes de executar `threaded_bsearch_lower_bound`
-    clock_t start_time = clock();
-    threaded_bsearch_lower_bound(&d);
-    clock_t end_time = clock();
+    // Inicia e para a medição de tempo para uma única execução
+    chrono_start(&chrono); // Inicia a medição de tempo
 
-    double elapsed_time = ((double)(end_time - start_time)) / CLOCKS_PER_SEC * 1000; // Tempo em milissegundos
-    printf("Tempo de execução de threaded_bsearch_lower_bound: %.2f ms\n", elapsed_time);
+    // Executa a busca binária paralela uma vez
+    threaded_bsearch_lower_bound(&d);
+
+    chrono_stop(&chrono); // Finaliza a medição de tempo
+
+    // Exibe o tempo total e a vazão
+    chrono_reportTime(&chrono, "Tempo de execução para threaded_bsearch_lower_bound");
+    double total_time_in_seconds = (double)chrono_gettotal(&chrono) / ((double)1000 * 1000 * 1000);
+    printf("Tempo total em segundos: %lf s\n", total_time_in_seconds);
+
+    double OPS = ((double)m) / total_time_in_seconds;
+    printf("Throughput (OPS): %lf OP/s\n", OPS);
 
     // Liberação de memória
     free(input.v);
